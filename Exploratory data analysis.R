@@ -60,7 +60,7 @@
 # Also, create a vector containig the actual outcome we're interested in for this analysis
 #   correct or not, not which class of incorrect
 
-    outcomes<-c()
+    outcomes<-factor(levels=c("Right", "Wrong"))
     for (i in 1:dim(trainingclean)[1]) {
         if (trainingclean[i,54]=="A"){
             outcomes[i]<-"Right"
@@ -89,14 +89,34 @@
 
     head(total_accel_belt)
 
+# Look for variables with near 0 variability
+
+    nsv<- nearZeroVar(trainingclean, saveMetrics=TRUE)
+    nsv
+
+    #No variables come out small variation
+
+# Look for highly correlated variables
+    M<-abs(cor(trainingclean[,2:53]))
+    diag(M)<-0
+    which(M>.8, arr.ind=T)
+    # Lots of high correlations
+# Consider pca - must apply same pcas to test set as used for training set!
+# Sample code:
+
+    preProc<-preProcess(log10(trainingclean[,2:53]+.0001), method="pca", pcaComp=2)
+    pcatrain<- predict(preProc, log10(trainingclean[,2:53]+.0001))
+    modelFit<- train(outcomes~., data=pcatrain, method="glm")
+
+    pcatest<- predict(preProc, log10(testingclean[,2:53] +.0001))
+    confusionMatrix(outcomes, predict(modelFit, testPC))
+
 # Try out a few models at this point
     library(caret)
-    t<-train(trainingclean[,2:5], outcomes, method="glm", na.action=na.omit)
+    glm.model<-train(trainingclean[,2:53], outcomes, method="glm", na.action=na.omit)
 
-summary(trainingclean[,2:53])
-str(trainingclean[,2:53])
+    glm.model$results     #Accuracy of .902, not bad
 
-trainingclean[,5]<-as.numeric(trainingclean[,5])
+    confusionMatrix(outcomes, predict(glm.model, trainingclean[,2:53]))
 
-    t<-train(outcomes~., data=trainingclean[,2:53], method="lm")
-
+    rf.model<-train(trainingclean[,2:53], outcomes, method="rf")
