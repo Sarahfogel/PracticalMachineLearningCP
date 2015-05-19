@@ -52,27 +52,41 @@
 
     dim(training[-c(1,3:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150  )])
 
-# Create new training and testing sets with the irrelevant variables removed
+# Create new training and testing sets with the irrelevant variables removed and partition off a
+#   validation set
+    library(caret)
+    set.seed(3450)
 
-    trainingclean<-training[-c(1,3:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150  )]
-    testingclean<-testing[-c(1,3:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150  )]
+    trainIndex<-createDataPartition(training[,160], p=.8, list=FALSE)
+
+    validationclean<-training[-trainIndex,-c(1,2,3:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150  )]
+    trainingclean<-training[trainIndex, -c(1,2,3:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150  )]
+    testingclean<-testing[-c(1,2,3:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150  )]
 
 # Also, create a vector containig the actual outcome we're interested in for this analysis
 #   correct or not, not which class of incorrect
 
     outcomes<-factor(levels=c("Right", "Wrong"))
     for (i in 1:dim(trainingclean)[1]) {
-        if (trainingclean[i,54]=="A"){
+        if (trainingclean[i,53]=="A"){
             outcomes[i]<-"Right"
         } else {
             outcomes[i]<-"Wrong"
         }
     }
 
+    validationoutcomes<-factor(levels=c("Right", "Wrong"))
+    for (i in 1:dim(validationclean)[1]) {
+        if (validationclean[i,53]=="A"){
+            validationoutcomes[i]<-"Right"
+        } else {
+            validationoutcomes[i]<-"Wrong"
+        }
+    }
 # Continue exploring
     summary(trainingclean)
 
-# The 54 variables we have left are: person(1); roll, pitch, and yaw of each of 4 sensors(12); 
+# The 53 variables we have left are; roll, pitch, and yaw of each of 4 sensors(12); 
 #   total acceleration of 4 sensors(4); acceleration in 3 directions of 4 sensors (12);
 #   gyroscopic forces in 3 directions on 4 sensors (12); 
 #   magnetic force in 3 directions on 4 sensors (12); and class of exercise (1)
@@ -97,26 +111,48 @@
     #No variables come out small variation
 
 # Look for highly correlated variables
-    M<-abs(cor(trainingclean[,2:53]))
+    M<-abs(cor(trainingclean[,1:52]))
     diag(M)<-0
     which(M>.8, arr.ind=T)
     # Lots of high correlations
 # Consider pca - must apply same pcas to test set as used for training set!
 # Sample code:
 
-    preProc<-preProcess(log10(trainingclean[,2:53]+.0001), method="pca", pcaComp=2)
-    pcatrain<- predict(preProc, log10(trainingclean[,2:53]+.0001))
+    preProc<-preProcess(log10(trainingclean[,1:52]+.0001), method="pca", pcaComp=2)
+    pcatrain<- predict(preProc, log10(trainingclean[,1:52]+.0001))
     modelFit<- train(outcomes~., data=pcatrain, method="glm")
 
-    pcatest<- predict(preProc, log10(testingclean[,2:53] +.0001))
+    pcatest<- predict(preProc, log10(testingclean[,1:52] +.0001))
     confusionMatrix(outcomes, predict(modelFit, testPC))
+
+preProc<-preProcess(trainingclean[,1:52], method="pca", thresh=.9)
+pcatrain<- predict(preProc, trainingclean[,1:52])
+modelFit<- train(outcomes~., data=pcatrain, method="glm")
+
+modelFit$result
+
+pcavalidation<- predict(preProc,validationclean[,1:52])
+confusionMatrix(validationoutcomes, predict(modelFit, pcavalidation))
+
 
 # Try out a few models at this point
     library(caret)
-    glm.model<-train(trainingclean[,2:53], outcomes, method="glm", na.action=na.omit)
+    glm.model<-train(trainingclean[,1:52], outcomes, method="glm", na.action=na.omit)
 
-    glm.model$results     #Accuracy of .902, not bad
+    glm.model$results     #Accuracy of .903, not bad
 
-    confusionMatrix(outcomes, predict(glm.model, trainingclean[,2:53]))
+    confusionMatrix(outcomes, predict(glm.model, trainingclean[,1:52]))
+    confusionMatrix(validationoutcomes, predict(glm.model, validationclean[,1:52]))
 
-    rf.model<-train(trainingclean[,2:53], outcomes, method="rf")
+    rpart.model<-train(trainingclean[,1:52], trainingclean[,53], method="rpart")
+    rpart.model$result
+    confusionMatrix(validationclean[,53], predict(rpart.model, validationclean[,1:52]))
+
+
+    rf.model<-train(trainingclean[,1:52], trainingclean[,53], method="rf")
+    rf.model$result
+    confusionMatrix(validationclean[,53], predict(rf.model, validationclean[,1:52]))
+
+rf.pca.model<-train(pcatrain, trainingclean[,53], method="rf")
+rf..pca.model$result
+confusionMatrix(validationclean[,53], predict(rf.model, validationclean[,1:52]))
