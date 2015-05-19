@@ -115,6 +115,91 @@
     diag(M)<-0
     which(M>.8, arr.ind=T)
     # Lots of high correlations
+
+# Quick graphs of all remaining predictors to look for skewness etc.
+    par(mfrow=c(2,2))
+    for (i in 1:4) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 5:8) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 9:12) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 13:16) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 17:20) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 21:24) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 25:28) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 29:32) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 33:36) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 37:40) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 41:44) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 45:48) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 49:52) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]))
+    }
+# Boxplots
+    for (i in 1:4) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 5:8) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 9:12) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 13:16) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 17:20) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 21:24) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 25:28) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 29:32) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 33:36) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 37:40) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 41:44) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 45:48) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    for (i in 49:52) {
+        boxplot(trainingclean[,i]~trainingclean[,53], main=paste(names(trainingclean)[i]))
+    }
+    par(mfrow=c(1,1))
+   
+
 # Consider pca - must apply same pcas to test set as used for training set!
 # Sample code:
 
@@ -139,20 +224,65 @@ confusionMatrix(validationoutcomes, predict(modelFit, pcavalidation))
     library(caret)
     glm.model<-train(trainingclean[,1:52], outcomes, method="glm", na.action=na.omit)
 
-    glm.model$results     #Accuracy of .903, not bad
+    glm.model$results     #Accuracy of .903, not bad, but measuring the wrong thing
 
     confusionMatrix(outcomes, predict(glm.model, trainingclean[,1:52]))
     confusionMatrix(validationoutcomes, predict(glm.model, validationclean[,1:52]))
 
-    rpart.model<-train(trainingclean[,1:52], trainingclean[,53], method="rpart")
+    rpart.model<-train(trainingclean[,1:52], trainingclean[,53], method="rpart") #began at 10:28, done by 10:38
     rpart.model$result
     confusionMatrix(validationclean[,53], predict(rpart.model, validationclean[,1:52]))
+        #Accuracy of .4876, not very good
 
+    rpart.model
+    rpart.model$finalModel
+    plot(rpart.model$finalModel, uniform=T, main="Classification Tree")
+    text(rpart.model$finalModel, use.n=T, all=T, cex=.5)
 
-    rf.model<-train(trainingclean[,1:52], trainingclean[,53], method="rf")
+    rf.model<-train(trainingclean[,1:52], trainingclean[,53], method="rf") #Started this at 8:45 today, done by 9:49, possibly earlier
     rf.model$result
     confusionMatrix(validationclean[,53], predict(rf.model, validationclean[,1:52]))
+        #Accuracy of .9939 on validation set, excellent
 
-rf.pca.model<-train(pcatrain, trainingclean[,53], method="rf")
-rf..pca.model$result
-confusionMatrix(validationclean[,53], predict(rf.model, validationclean[,1:52]))
+    rf.model
+    rf.model$finalModel
+    plot(rf.model$finalModel)
+
+#Try out some 10 fold cross validation on this model
+    fitControl<-trainControl(method="repeatedcv", number=10, repeats=10)
+    rf.model.cv<-train(trainingclean[,1:52], trainingclean[,53], method="rf", trControl=fitControl) #began 10:53, not done by 12:02
+    system.time(rf.model.cv<-train(trainingclean[,1:52], trainingclean[,53], method="rf", trControl=fitControl)) 
+    rf.model.cv
+    trellis.par.set(caretTheme())
+    plot(rf.model.cv)
+    trellis.par.set()
+    confusionMatrix(validationclean[,53], predict(rf.model.cv, validationclean[,1:52]))
+
+
+
+    rf.pca.model<-train(pcatrain, trainingclean[,53], method="rf") #began at 9:52, done by 10:27
+    rf.pca.model$result
+    confusionMatrix(validationclean[,53], predict(rf.pca.model, pcavalidation))
+        #Accuracy of .9748 on validation set, great but less than rf.model
+
+# What other models should I run?
+
+# Naive Bayes
+    nb.model<-train(trainingclean[,1:52], trainingclean[,53], method="nb") 
+    nb.model$result
+    confusionMatrix(validationclean[,53], predict(nb.model, validationclean[,1:52]))
+        #Accuracy .7487, not as good as rf.model
+# Neural net deep learning?
+
+    set.seed(4056)
+    smalltraining<-trainingclean[sample(1:dim(trainingclean)[1], size=5000), ]
+    nnet.model.small<-train(smalltraining[,1:52], smalltraining[,53], method="nnet") 
+    nnet.model.small
+    confusionMatrix(validationclean[,53], predict(nnet.model.small, validationclean[,1:52]))
+        #Accuracy .3849 with 5000 observations
+
+    gbm.model<-train(smalltraining[,1:52], smalltraining[,53], method="gbm") 
+    gbm.model
+    confusionMatrix(validationclean[,53], predict(gbm.model, validationclean[,1:52]))
+        #Accuracy of .9467 with only 5000 variables - try this one full size
+
