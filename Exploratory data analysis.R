@@ -249,8 +249,8 @@ confusionMatrix(validationoutcomes, predict(modelFit, pcavalidation))
     plot(rf.model$finalModel)
 
 #Try out some 10 fold cross validation on this model
-    fitControl<-trainControl(method="repeatedcv", number=10, repeats=10)
-    rf.model.cv<-train(trainingclean[,1:52], trainingclean[,53], method="rf", trControl=fitControl) #began 10:53, not done by 12:02
+    fitControl<-trainControl(method="repeatedcv", number=10, repeats=5)
+    rf.model.cv<-train(trainingclean[,1:52], trainingclean[,53], method="rf", trControl=fitControl) #
     system.time(rf.model.cv<-train(trainingclean[,1:52], trainingclean[,53], method="rf", trControl=fitControl)) 
     rf.model.cv
     trellis.par.set(caretTheme())
@@ -281,8 +281,28 @@ confusionMatrix(validationoutcomes, predict(modelFit, pcavalidation))
     confusionMatrix(validationclean[,53], predict(nnet.model.small, validationclean[,1:52]))
         #Accuracy .3849 with 5000 observations
 
-    gbm.model<-train(smalltraining[,1:52], smalltraining[,53], method="gbm") 
+    gbm.model.small<-train(smalltraining[,1:52], smalltraining[,53], method="gbm") 
+    gbm.model.small
+    confusionMatrix(validationclean[,53], predict(gbm.model.small, validationclean[,1:52]))
+        #Accuracy of .9467 with only 5000 variables - try this one full size
+
+    set.seed(333)
+    gbm.model<-train(trainingclean[,1:52], trainingclean[,53], method="gbm") #began 9:26 done by 10:40
     gbm.model
     confusionMatrix(validationclean[,53], predict(gbm.model, validationclean[,1:52]))
-        #Accuracy of .9467 with only 5000 variables - try this one full size
+        #Accuracy .9595, less than rf.model
+
+# Create answer files for submission
+    answers = predict(rf.model, testingclean)
+#    answers
+
+    pml_write_files = function(x){
+        n = length(x)
+        for(i in 1:n){
+            filename = paste0("problem_id_",i,".txt")
+            write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+        }
+    }
+
+    pml_write_files(answers)
 

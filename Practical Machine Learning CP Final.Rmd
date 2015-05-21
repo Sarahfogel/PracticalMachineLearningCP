@@ -1,0 +1,134 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Sarah Fogel"
+date: "Wednesday, May 20, 2015"
+output: html_document
+---
+##Synopsis
+This report adresses the creation of a prediction algorithm for determining the class of bicep curl (correct form or one of four incorrect forms) based on input from sensors on various points on a person's body.  This analysis finds that a random forest prediction provides the best chance for correct predictions.
+
+
+##Data Processing and Exploratory Analysis
+The data is first read in as-is from a downloaded file in the working directory.
+It is split into a training set and a testing set
+
+```{r, echo=FALSE, cache=TRUE}
+
+# Read the files in
+
+    training<-read.csv("pml-training.csv", header=T)
+    testing<-read.csv("pml-testing.csv", header=T)
+
+```
+
+Then we take a look at the data in the training set to begin identifying possible transformations that should be performed or variables that should be removed from consideration.  The test set will be ignored during the analysis except to perform the same transformations on that data as are done to the training set.
+
+Most of the results of the exploration will not be reproduced here for the sake of brevity.
+
+```{r}
+# How big is the data set?
+    dim(training)
+# What are the variables in the data set?
+    head(names(training), 15)
+```
+Since it would be ideal for a prediction algorithm to be applicable regardless of the particular user or any variable related to when the bicep curl was performed, those varibles, as well as the index, will be removed. 
+
+Many of the variables have more than 95% of the observations missing.  It was assumed that this data would a) likely be missing in any new data collected and b) unlikely to contribute much to tuning a prediction algorithm, so all of those variables were removed.
+
+At the same time as a "clean" training set was created, a valdiation set was partitioned off to allow for "out of sample" validation later on in the prediction algorithm selection process.  20% of the training set was used for this validation set.
+
+```{r, include=FALSE}
+    library(caret)
+    set.seed(3450)
+
+    trainIndex<-createDataPartition(training[,160], p=.8, list=FALSE)
+
+    validationclean<-training[-trainIndex,-c(1:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150)]
+    trainingclean<-training[trainIndex, -c(1:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150)]
+    testingclean<-testing[-c(1:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150)]
+```
+
+The remaining varibles were examined for low variability, which would indicate that they are unlikely to contribute substantially to a prediction algorithm.
+
+Number of variables with near zero variability:
+```{r, echo=FALSE}
+    nzv<- nearZeroVar(trainingclean, saveMetrics=TRUE)
+    sum(nzv$nzv)
+```
+
+No variables were found to have near zero variability.
+
+The 53 variables remaining in the data set are: roll, pitch, and yaw of each of 4 sensors(12); total acceleration of 4 sensors(4); acceleration in 3 directions of 4 sensors (12); gyroscopic forces in 3 directions on 4 sensors (12); magnetic force in 3 directions on 4 sensors (12); and class of exercise (1)
+
+Many of the remaining variables are non-normal; many were bi-modal in shape and some were skewed.  No transformations were performed because the prediction methods used were primarily non-linear and could handle non-normal data.  A sample of the varibles are plotted below to demonstrate the variety of distributions.
+
+```{r, echo=FALSE}
+    par(mfrow=c(2,2))
+    for (i in 21:24) {
+        hist(trainingclean[,i], main=paste(names(trainingclean)[i]), xlab="", col="steelblue")
+    }
+    par(mfrow=c(1,1))
+```
+
+##Model Building and Selection
+
+Several models were fit using the caret package on the training data.  These were a classification tree model (rpart), a random forest model (rf), a random forest model using principal components (rf.pca), and a stochastic gradient boosting model (gbm).
+
+```{r, include=FALSE, cache=TRUE,}
+    set.seed(333)
+# Classification tree
+    rpart.model<-train(trainingclean[,1:52], trainingclean[,53], method="rpart")
+# Random Forrest
+    rf.model<-train(trainingclean[,1:52], trainingclean[,53], method="rf")
+
+# Prepare principal components
+    preProc<-preProcess(trainingclean[,1:52], method="pca", thresh=.9)
+    pcatrain<- predict(preProc, trainingclean[,1:52])
+    pcavalidation<- predict(preProc,validationclean[,1:52])
+
+# Principal components random forrest
+    rf.pca.model<-train(pcatrain, trainingclean[,53], method="rf")
+
+# Stochastic gradient boosting model
+    gbm.model<-train(trainingclean[,1:52], trainingclean[,53], method="gbm")
+
+```
+
+Each of these models was created using bootstrapping validation to select the parameters.  Since the parameters were selected using this form of validation, another form must be used to estimate the out of sample error.  This was determined by comparing the bicep curl classes in the validation set (which was removed from the training set prior to training the models) to the predicted values based on each model.  The results for each model are listed below:
+
+```{r, include=FALSE}
+    library(rpart)
+    library(randomForest)
+    library(gbm)
+    library(plyr)
+```
+
+Classification Tree Model
+```{r, echo=FALSE}
+    confusionMatrix(validationclean[,53], predict(rpart.model, validationclean[,1:52]))
+```
+
+Random Forest Model
+```{r, echo=FALSE}
+    confusionMatrix(validationclean[,53], predict(rf.model, validationclean[,1:52]))
+```
+
+Random Forest Model using Principal Components
+```{r, echo=FALSE}
+    confusionMatrix(validationclean[,53], predict(rf.pca.model, pcavalidation))
+```
+
+Stochastic Gradient Boosting Model
+```{r, echo=FALSE}
+    confusionMatrix(validationclean[,53], predict(gbm.model, validationclean[,1:52]))
+```
+
+The higest out of sample accuracy for any of these models is the random forrest model.  Therefore, that will be the selected model.
+
+The expected out of sample accuracy for this model is .99.
+
+##Predicting with the Model
+
+The random forest model can now be applied to the test set to make the final predictions.  The predictions for the test set were submitted through the online submission function and all were rated correct.
+
+
