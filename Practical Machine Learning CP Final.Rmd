@@ -1,11 +1,11 @@
 ---
 title: "Practical Machine Learning Course Project"
 author: "Sarah Fogel"
-date: "Wednesday, May 20, 2015"
+date: "Wednesday, June 6, 2015"
 output: html_document
 ---
 ##Synopsis
-This report adresses the creation of a prediction algorithm for determining the class of bicep curl (correct form or one of four incorrect forms) based on input from sensors on various points on a person's body.  This analysis finds that a random forest prediction provides the best chance for correct predictions.
+This report adresses the creation of a prediction algorithm for determining the class of bicep curl (correct form or one of four incorrect forms) based on input from sensors on various points on a person's body.  This analysis finds that a random forest prediction provides the best chance for correct predictions. The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
 
 
 ##Data Processing and Exploratory Analysis
@@ -28,10 +28,10 @@ Most of the results of the exploration will not be reproduced here for the sake 
 ```{r}
 # How big is the data set?
     dim(training)
-# What are the variables in the data set?
+# What are the first 15 variables in the data set?
     head(names(training), 15)
 ```
-Since it would be ideal for a prediction algorithm to be applicable regardless of the particular user or any variable related to when the bicep curl was performed, those varibles, as well as the index, will be removed. 
+Since it would be counter-productive for a prediction algorithm to be dependent on the specific person who performed the exercise or the time when they performed the exercise, those varibles, as well as the index, will be removed. 
 
 Many of the variables have more than 95% of the observations missing.  It was assumed that this data would a) likely be missing in any new data collected and b) unlikely to contribute much to tuning a prediction algorithm, so all of those variables were removed.
 
@@ -40,12 +40,17 @@ At the same time as a "clean" training set was created, a valdiation set was par
 ```{r, include=FALSE}
     library(caret)
     set.seed(3450)
+    unhelpfulVariables<-c(1:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150)
+```
+
+
+```{r, results = 'hide'}
 
     trainIndex<-createDataPartition(training[,160], p=.8, list=FALSE)
 
-    validationclean<-training[-trainIndex,-c(1:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150)]
-    trainingclean<-training[trainIndex, -c(1:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150)]
-    testingclean<-testing[-c(1:7, 12:36, 50:59, 69:83, 87:101, 103:112,125:139, 141:150)]
+    validationclean<-training[-trainIndex,-unhelpfulVariables]
+    trainingclean<-training[trainIndex, -unhelpfulVariables]
+    testingclean<-testing[-unhelpfulVariables]
 ```
 
 The remaining varibles were examined for low variability, which would indicate that they are unlikely to contribute substantially to a prediction algorithm.
@@ -74,11 +79,11 @@ Many of the remaining variables are non-normal; many were bi-modal in shape and 
 
 Several models were fit using the caret package on the training data.  These were a classification tree model (rpart), a random forest model (rf), a random forest model using principal components (rf.pca), and a stochastic gradient boosting model (gbm).
 
-```{r, include=FALSE, cache=TRUE,}
+```{r, echo=TRUE, results='hide', cache=TRUE,}
     set.seed(333)
 # Classification tree
     rpart.model<-train(trainingclean[,1:52], trainingclean[,53], method="rpart")
-# Random Forrest
+# Random Forest
     rf.model<-train(trainingclean[,1:52], trainingclean[,53], method="rf")
 
 # Prepare principal components
@@ -86,7 +91,7 @@ Several models were fit using the caret package on the training data.  These wer
     pcatrain<- predict(preProc, trainingclean[,1:52])
     pcavalidation<- predict(preProc,validationclean[,1:52])
 
-# Principal components random forrest
+# Principal components random forest
     rf.pca.model<-train(pcatrain, trainingclean[,53], method="rf")
 
 # Stochastic gradient boosting model
